@@ -1,9 +1,12 @@
+// import { Mesh } from 'three';
 import { addLights } from './light.js';
+import { smoothTransition } from './camera.js';
+import { changeView } from './camera.js';
 
 
 (function () {
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    window.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
     
@@ -13,72 +16,8 @@ import { addLights } from './light.js';
     const container = document.getElementById('threejs-container');
     container.appendChild(renderer.domElement);
     
-    const views = {
-        vue1: {
-            camera: {
-                position: [0, 20, -40],
-                rotation: [-Math.PI / 60, 3.14, 0],
-            }
-        },
-        vue2: {
-            camera: {
-                position: [85, 100, 0],
-                rotation: [-Math.PI / 2, Math.PI / 4, Math.PI / 2],
-            }
-        },
-        vue3: {
-            camera: {
-                position: [0, 60, 200],
-                rotation: [-Math.PI / 60, 3.14, 0],
-            }
-        },
-        vue4: {
-            camera: {
-                position: [0, 200, 0],
-                rotation: [-Math.PI / 2, 0, 0],
-            }
-        }
-    };
-    
-
     addLights(scene);
-    let currentTransition = null;
-
-    function smoothTransition(targetPosition, targetRotation, duration = 1) {
-        if (currentTransition) cancelAnimationFrame(currentTransition);
-
-        const startPosition = camera.position.clone();
-        const startRotation = new THREE.Euler().copy(camera.rotation);
-
-        const startTime = performance.now();
-        const endTime = startTime + duration * 1000;
-
-        function animate() {
-            const now = performance.now();
-            const t = Math.min((now - startTime) / (endTime - startTime), 1);
-
-            // Interpolation de la position
-            camera.position.lerpVectors(startPosition, new THREE.Vector3(...targetPosition), t);
-
-            // Interpolation de la rotation
-            camera.rotation.x = startRotation.x + t * (targetRotation[0] - startRotation.x);
-            camera.rotation.y = startRotation.y + t * (targetRotation[1] - startRotation.y);
-            camera.rotation.z = startRotation.z + t * (targetRotation[2] - startRotation.z);
-
-            if (t < 1) {
-                currentTransition = requestAnimationFrame(animate);
-            }
-        }
-        animate();
-    }
-
-    // Fonction pour changer de vue avec transition
-    function changeView(viewName) {
-        const view = views[viewName];
-        if (view) {
-            smoothTransition(view.camera.position, view.camera.rotation, 1.5); // Transition de 1,5 seconde
-        }
-    }
+    // changeView('vue1');
 
     function resizeRenderer() {
         const width = container.clientWidth;
@@ -102,7 +41,6 @@ import { addLights } from './light.js';
         scene.add(simpleLight);
     });
 
-    
 
 
     const pongWidth_side_rl = 80;  // Largeur de la zone de jeu
@@ -160,102 +98,154 @@ import { addLights } from './light.js';
     const paddle_left = new THREE.Mesh(paddleGeometry, paddleMaterial);
     paddle_left.position.set(0, 0, -100);
 
-    // Ajouter paddles à la scène
-    scene.add(paddle_right);
-    scene.add(paddle_left);
 
-    // Vitesse de déplacement des paddles
-    const paddle_speed = 5;
-
-    // Écoute des événements clavier
-    document.addEventListener('keydown', function (event) {
-        // Déplacement du paddle droit
-        if (event.key === 'ArrowUp' && paddle_right.position.x > border_top.position.x + 10) {
-            paddle_right.position.x -= paddle_speed;
-        } else if (event.key === 'ArrowDown' && paddle_right.position.x < border_bottom.position.x - 10) {
-            paddle_right.position.x += paddle_speed;
-        }
-        
-        else if (event.key === 'w' && paddle_left.position.x > border_top.position.x + 10) {
-            // Déplace le paddle vers le haut (dans l'axe x négatif)
-            paddle_left.position.x -= paddle_speed;
-        } else if (event.key === 's' && paddle_left.position.x < border_bottom.position.x - 10) {
-            // Déplace le paddle vers le bas (dans l'axe x positif)
-            paddle_left.position.x += paddle_speed;
-        }
-    });
-
-
-
-    const ballGeometry = new THREE.SphereGeometry(5, 32, 32);
-    const ballMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-
-    const ball = new THREE.Mesh(ballGeometry, ballMaterial);
-    ball.position.set(0, 0, 0);
-
-    scene.add(ball);
-
-    let speedx = -0.1;
-    let speedy = 0.1;
-
-    function animateBall() {
-        ball.position.x += speedx;
-        ball.position.z += speedy;
+    function initializeDefaultView() {
+        // Définir la vue par défaut
+        const defaultView = 'vue2'; // Vue par défaut
+        changeView(defaultView); // Application de la vue par défaut
     }
 
 
+    const ballGeometry = new THREE.SphereGeometry(5, 32, 32);
+    const ballMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const ball = new THREE.Mesh(ballGeometry, ballMaterial);
+    ball.position.set(0, 0, 0);
 
 
+    let ballDirection = new THREE.Vector3(0, 0, 1).normalize(); // Direction initiale de la balle
+    let ballSpeed = 0.5; // Vitesse de la balle
+
+    function animateBall() {
+        ball.position.add(ballDirection);
+    
+        // Collision avec les limites du terrain
+        if (ball.position.z > 120 || ball.position.z < -120) {
+            ballDirection.z *= -1;
+        }
+        else if (ball.position.x > 55 || ball.position.x < -55) {
+            ballDirection.x *= -1;
+        }
+    
+        // Collision avec le paddle droit
+        if (Math.abs(ball.position.z - paddle_right.position.z) < 5) { // Distance de collision sur l'axe Z
+            if (Math.abs(ball.position.x - paddle_right.position.x) < 10) { // Distance de collision sur l'axe X
+                
+                // Inverser la direction Z
+                ballDirection.z *= -1;
+                
+                // Ajouter un effet basé sur la position de collision sur le paddle
+                const relativeIntersectX = ball.position.x - paddle_right.position.x;
+                // Normaliser entre -1 et 1
+                const normalizedIntersect = relativeIntersectX / 7.5;
+                // Modifier la direction X en fonction du point d'impact
+                ballDirection.x = normalizedIntersect;
+                // Normaliser le vecteur de direction
+                ballDirection.normalize();
+            }
+        }
+    
+        // Collision avec le paddle gauche
+        if (Math.abs(ball.position.z - paddle_left.position.z) < 5) { // Distance de collision sur l'axe Z
+            if (Math.abs(ball.position.x - paddle_left.position.x) < 10) { // Distance de collision sur l'axe X
+                // Inverser la direction Z
+                ballDirection.z *= -1;
+                
+                // Ajouter un effet basé sur la position de collision sur le paddle
+                const relativeIntersectX = ball.position.x - paddle_left.position.x;
+                // Normaliser entre -1 et 1
+                const normalizedIntersect = relativeIntersectX / 7.5;
+                // Modifier la direction X en fonction du point d'impact
+                ballDirection.x = normalizedIntersect;
+                // Normaliser le vecteur de direction
+                ballDirection.normalize();
+            }
+        }
+    }
 
 
-
-
-
-
-
-
-
-
-
+    
     const loader = new THREE.GLTFLoader();
-    loader.load('3d_object/footballStadium copy 5.glb', function (gltf)
-    {
+    loader.load('3d_object/footballStadium copy 5.glb', function (gltf) {
         const model = gltf.scene;
         scene.add(model);
-
+    
         model.position.set(0, 0, 0);
+        model.rotation.set(0, Math.PI / 1, 0);
         model.scale.set(1.7, 1.54, 2);
-        changeView('vue1');
 
-        document.addEventListener('keydown', function (event)
-        {
+        //vue par defaut
+        initializeDefaultView();
+        
+
+        document.addEventListener('keydown', function (event) {
+            // Ajout des déplacements individuels des paddles dans animate()
             if (event.key === '1') {
                 changeView('vue1');
+                model.position.set(0, 0, 0);
+                model.rotation.set(0, Math.PI / 1, 0);
             } else if (event.key === '2') {
                 changeView('vue2');
-                scene.add(border_top);
-                scene.add(border_bottom);
-                scene.add(border_left);
-                scene.add(border_right);
+                // scene.add(border_top);
+                // scene.add(border_bottom);
+                // scene.add(border_left);
+                // scene.add(border_right);
+                scene.add(ball);
                 scene.add(paddle_right);
                 scene.add(paddle_left);
-            }
-            else if (event.key === '3') {
+                model.position.set(0, 0, 0);
+                model.rotation.set(0, Math.PI / 1, 0);
+            } else if (event.key === '3') {
                 changeView('vue3');
-            }
-            else if (event.key === '4') {
+                model.position.set(0, 0, 0);
+                model.rotation.set(0, Math.PI / 1, 0);
+
+            } else if (event.key === '4') {
                 changeView('vue4');
+                model.rotation.set(0, Math.PI / 1, 0);
             }
         });
-
+    
+        // Ajout des contrôles des paddles
+        let keysPressed = {};
+        let paddleSpeed = 2;
+    
+        // Événements pour enregistrer les touches pressées
+        document.addEventListener('keydown', (event) => {
+            keysPressed[event.key] = true;
+        });
+    
+        document.addEventListener('keyup', (event) => {
+            keysPressed[event.key] = false;
+        });
+    
         function animate() {
+            // console.log('Balle position:', ball.position);
+            // console.log('Paddle droit position:', paddle_right.position);
+            // console.log('Paddle gauche position:', paddle_left.position);
             requestAnimationFrame(animate);
             renderer.render(scene, camera);
-
+    
+            // Déplacement du paddle droit
+            if (keysPressed['w'] && paddle_right.position.x > border_top.position.x + 10) {
+                paddle_right.position.x -= paddleSpeed;
+            }
+            if (keysPressed['s'] && paddle_right.position.x < border_bottom.position.x - 12) {
+                paddle_right.position.x += paddleSpeed;
+            }
+    
+            // Déplacement du paddle gauche
+            if (keysPressed['ArrowUp'] && paddle_left.position.x > border_top.position.x + 10) {
+                paddle_left.position.x -= paddleSpeed;
+            }
+            if (keysPressed['ArrowDown'] && paddle_left.position.x < border_bottom.position.x - 12) {
+                paddle_left.position.x += paddleSpeed;
+            }
+            animateBall();
         }
         animate();
     });
-
+    
     resizeRenderer();
     window.addEventListener('resize', resizeRenderer);
+    
 })();
