@@ -1,6 +1,5 @@
 // import { Mesh } from 'three';
 import { addLights } from './light.js';
-import { smoothTransition } from './camera.js';
 import { changeView } from './camera.js';
 
 

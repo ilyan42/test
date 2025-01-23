@@ -22,7 +22,7 @@ const views = {
     vue4: {
         camera: {
             // position: [200, 300, 500],
-            position: [200, 180, 500],
+            position: [100, 100, 350],
 
 
             rotation: [-Math.PI / 100, Math.PI / 4, 0],
