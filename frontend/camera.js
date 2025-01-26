@@ -28,6 +28,13 @@ const views = {
             rotation: [-Math.PI / 100, Math.PI / 4, 0],
         }
     },
+	vue5: {
+		camera: {
+			// position: [200, 300, 500],
+			position: [390, 510, 520],
+			rotation: [0, 0, 0],
+		}
+	},
 };
 
 export function changeView(viewName) {

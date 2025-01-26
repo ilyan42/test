@@ -5,7 +5,7 @@ import { changeView } from './camera.js';
 
 (function () {
     const scene = new THREE.Scene();
-    window.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    window.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
     
@@ -16,6 +16,42 @@ import { changeView } from './camera.js';
     container.appendChild(renderer.domElement);
     
     addLights(scene);
+
+	let loadingOverlay;
+    let isLoading = false;
+    let targetView = null;
+
+    function createLoadingOverlay() {
+        loadingOverlay = document.createElement('div');
+        loadingOverlay.style.position = 'fixed';
+        loadingOverlay.style.top = '0';
+        loadingOverlay.style.left = '0';
+        loadingOverlay.style.width = '100%';
+        loadingOverlay.style.height = '100%';
+        loadingOverlay.style.backgroundColor = 'black';
+        loadingOverlay.style.zIndex = '1000';
+        loadingOverlay.style.display = 'flex';
+        loadingOverlay.style.justifyContent = 'center';
+        loadingOverlay.style.alignItems = 'center';
+        loadingOverlay.style.color = 'white';
+        loadingOverlay.style.fontSize = '2rem';
+        loadingOverlay.textContent = 'Chargement...';
+        document.body.appendChild(loadingOverlay);
+    }
+
+    function removeLoadingOverlay() {
+        if (loadingOverlay) {
+            loadingOverlay.style.opacity = '0';
+            setTimeout(() => {
+                document.body.removeChild(loadingOverlay);
+                isLoading = false;
+                if (targetView) {
+                    changeView(targetView);
+                    targetView = null;
+                }
+            }, 500);
+        }
+    }
     // changeView('vue1');
 
     function resizeRenderer() {
@@ -161,6 +197,12 @@ import { changeView } from './camera.js';
         }
     }
 
+	const blockGeometry = new THREE.BoxGeometry(10, 10, 10);
+	const blockMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+	const block = new THREE.Mesh(blockGeometry, blockMaterial);
+	block.position.set(500, 500, 500);
+	scene.add(block);
+
 
     
     const loader = new THREE.GLTFLoader();
@@ -178,12 +220,80 @@ import { changeView } from './camera.js';
         let isrotate = false;
 
         document.addEventListener('keydown', function (event) {
+				const moveSpeed = 10; // Vitesse de déplacement
+				const rotateSpeed = Math.PI / 60; // Vitesse de rotation
+			
+				switch (event.key) {
+					case "z":
+						camera.position.z -= moveSpeed; // Avancer
+						break;
+					case "s":
+						camera.position.z += moveSpeed; // Reculer
+						break;
+					case "q":
+						camera.position.x -= moveSpeed; // Aller à gauche
+						break;
+					case "d":
+						camera.position.x += moveSpeed; // Aller à droite
+						break;
+					case "ArrowUp":
+						camera.rotation.x -= rotateSpeed; // Rotation vers le haut
+						break;
+					case "ArrowDown":
+						camera.rotation.x += rotateSpeed; // Rotation vers le bas
+						break;
+					case "ArrowLeft":
+						camera.rotation.y -= rotateSpeed; // Rotation vers la gauche
+						break;
+					case "ArrowRight":
+						camera.rotation.y += rotateSpeed; // Rotation vers la droite
+						break;
+				}
             // Ajout des déplacements individuels des paddles dans animate()
-            if (event.key === '1') {
-                changeView('vue1');
-                model.position.set(0, 0, 0);
-                model.rotation.set(0, Math.PI / 1, 0);
-                isrotate = false
+			// if (view === 'vue5' && event.key === '1')
+			// {
+			// 	if (!isLoading)
+			// 	{
+			// 		isLoading = true;
+			// 		targetView = 'vue3';
+					
+			// 		// **Met directement la caméra sur la vue cible AVANT d'afficher l'écran de chargement**
+			// 		// setTimeout(() => {
+			// 			createLoadingOverlay(); // Afficher l'écran de chargement
+			// 			changeView(targetView);
+			// 		// }, 1500);
+			
+					
+			// 		// Simuler un chargement (ajuster la durée si nécessaire)
+			// 		setTimeout(() => {
+			// 			removeLoadingOverlay(); // Retirer l'écran de chargement après un délai
+			// 			changeView('vue1');
+			// 		}, 3500);
+			// 	}
+			// }
+			if (event.key === '1') {
+				if (!isLoading) {
+					if (window.currentView === 'vue5') {
+						isLoading = true;
+						createLoadingOverlay();
+			
+						setTimeout(() => {
+							changeView('vue3');
+						}, 1500); // On attend un peu avant de passer en vue3
+			
+						setTimeout(() => {
+							removeLoadingOverlay();
+							changeView('vue1'); // Maintenant on va en vue1 après la transition
+							model.position.set(0, 0, 0);
+							model.rotation.set(0, Math.PI / 1, 0);
+							isLoading = false;
+						}, 3500);
+					} else {
+						changeView('vue1');
+						model.position.set(0, 0, 0);
+						model.rotation.set(0, Math.PI / 1, 0);
+					}
+				}
             } else if (event.key === '2') {
                 changeView('vue2');
                 // scene.add(border_top);
@@ -196,12 +306,25 @@ import { changeView } from './camera.js';
                 model.position.set(0, 0, 0);
                 model.rotation.set(0, Math.PI / 1, 0);
                 isrotate = false;
-            } else if (event.key === '3') {
-                changeView('vue3');
-                model.position.set(0, 0, 0);
-                model.rotation.set(0, Math.PI / 1, 0);
-                isrotate = false;
-
+            } if (event.key === '3' && !isLoading) {
+				changeView('vue3');
+				if (!isLoading) {
+					isLoading = true;
+					targetView = 'vue5';
+					window.currentView = 'vue5';
+					
+					// **Met directement la caméra sur la vue cible AVANT d'afficher l'écran de chargement**
+					setTimeout(() => {
+						createLoadingOverlay(); // Afficher l'écran de chargement
+						changeView(targetView);
+					}, 1500);
+			
+					
+					// Simuler un chargement (ajuster la durée si nécessaire)
+					setTimeout(() => {
+						removeLoadingOverlay(); // Retirer l'écran de chargement après un délai
+					}, 3500);
+				}
             } else if (event.key === '4') {
                 changeView('vue4');
                 model.rotation.set(0, Math.PI / 1, 0);
@@ -228,6 +351,8 @@ import { changeView } from './camera.js';
             // console.log('Paddle gauche position:', paddle_left.position);
             requestAnimationFrame(animate);
             renderer.render(scene, camera);
+			console.log(camera.position);
+
     
             // Déplacement du paddle droit
             if (keysPressed['w'] && paddle_right.position.x > border_top.position.x + 10) {
@@ -249,8 +374,114 @@ import { changeView } from './camera.js';
         }
         animate();
     });
-    
-    resizeRenderer();
-    window.addEventListener('resize', resizeRenderer);
+
+	// const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+	// directionalLight.position.set(500, 750, 500);
+	// scene.add(directionalLight);
+
+
+	// const light1 = new THREE.SpotLight(0xffffff, 1.5);
+	// light1.position.set(700, 700, 700);  // Lumière principale venant du dessus
+	// light1.target.position.set(500, 500, 500);
+	// scene.add(light1);
+	// scene.add(light1.target);
+
+	// const light2 = new THREE.SpotLight(0xffffff, 0.8);
+	// light2.position.set(300, 800, 300);  // Lumière secondaire pour combler les ombres
+	// light2.target.position.set(500, 500, 500);
+	// scene.add(light2);
+	// scene.add(light2.target);
+
+	// const light3 = new THREE.SpotLight(0xffaa88, 0.6);
+	// light3.position.set(500, 300, 700);  // Contre-jour pour détacher l'objet du fond
+	// light3.target.position.set(500, 500, 500);
+	// scene.add(light3);
+	// scene.add(light3.target);
+
+	// // Optionnel : Ajouter une AmbientLight pour adoucir les ombres
+	// const ambientLight = new THREE.AmbientLight(0x404040, 1);
+	// scene.add(ambientLight);
+
+	// const loaderr = new THREE.GLTFLoader();
+	// loaderr.load('/3d_object/ImageToStl.com_football_stadium (5).glb', function (gltf) {
+	// const homeMenu = gltf.scene;
+		
+	// 	homeMenu.traverse((node) => {
+	// 		if (node.isMesh) {
+	// 			node.castShadow = true;
+	// 			node.receiveShadow = true;
+	// 			if (node.material.map) {
+	// 				node.material.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+	// 				node.material.map.magFilter = THREE.NearestFilter;
+	// 				node.material.map.minFilter = THREE.LinearMipMapLinearFilter;
+	// 			}
+	// 		}
+	// 	});
+	
+	// 	// Positionnement du modèle
+	// 	scene.add(homeMenu);
+	// 	homeMenu.position.set(500, 500, 500);
+	// 	homeMenu.rotation.set(0, Math.PI / 1, 0);
+	// 	homeMenu.scale.set(1.7, 1.54, 2);
+	// });
+
+	// // const lightss = new THREE.PointLight(0xffffff, 10, 100);
+	// // lightss.position.set(500, 500, 500);
+	// // scene.add(lightss);
+
+	// const lightsss = new THREE.PointLight(0xffffff, 10, 100);
+	// lightsss.position.set(748, 600, 3420);
+	// scene.add(lightsss);
+
+	// const lightssss = new THREE.PointLight(0xffffff, 10, 100);
+	// lightssss.position.set(340, 600, 3420);
+	// scene.add(lightssss);
+
+	const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // Lumière douce globale
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(1, 1, 1); // Vient d'en haut
+    scene.add(directionalLight);
+
+    // Trois lumières ponctuelles autour du modèle
+    const pointLight1 = new THREE.PointLight(0xffffff, 1);
+    pointLight1.position.set(500, 500, 500); // Lumière à droite
+
+    const pointLight2 = new THREE.PointLight(0xffffff, 1);
+    pointLight2.position.set(300, 700, 500); // Lumière au-dessus
+
+    const pointLight3 = new THREE.PointLight(0xffffff, 1);
+    pointLight3.position.set(400, 500, 700); // Lumière devant
+
+    scene.add(pointLight1, pointLight2, pointLight3);
+
+	const loade = new THREE.GLTFLoader();
+	loade.load('/3d_object/persoTest.glb', function (gltf) {
+		const model = gltf.scene;
+		scene.add(model);
+	
+		model.position.set(400, 500, 500);
+		model.scale.set(10, 10, 10);
+	
+		// Modifier le matériau existant au lieu de le remplacer
+		model.traverse((node) => {
+			if (node.isMesh) {
+				const material = node.material;
+				if (material) {
+					material.roughness = 1;  // Enlève la brillance
+					material.metalness = 0;  // Désactive l'effet métallique
+				}
+			}
+		});
+	});
+	
+	// Gestion du redimensionnement
+	function onWindowResize() {
+		camera.aspect = window.innerWidth / window.innerHeight;
+		camera.updateProjectionMatrix();
+		renderer.setSize(window.innerWidth, window.innerHeight);
+	}
+	window.addEventListener('resize', onWindowResize, false);
     
 })();
