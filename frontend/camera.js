@@ -31,7 +31,7 @@ const views = {
 	vue5: {
 		camera: {
 			// position: [200, 300, 500],
-			position: [390, 510, 520],
+			position: [450, 510, 510],
 			rotation: [0, 0, 0],
 		}
 	},

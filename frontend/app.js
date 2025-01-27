@@ -5,9 +5,10 @@ import { changeView } from './camera.js';
 
 (function () {
     const scene = new THREE.Scene();
-    window.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
-    const renderer = new THREE.WebGLRenderer();
+    window.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 10, 5000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio, 20);
     
     const ciel = new THREE.TextureLoader().load('/image/Capture d’écran 2025-01-15 à 16.35.37.png');
     scene.background = ciel;
@@ -17,25 +18,20 @@ import { changeView } from './camera.js';
     
     addLights(scene);
 
-	let loadingOverlay;
+    let loadingOverlay;
     let isLoading = false;
     let targetView = null;
 
     function createLoadingOverlay() {
         loadingOverlay = document.createElement('div');
-        loadingOverlay.style.position = 'fixed';
-        loadingOverlay.style.top = '0';
-        loadingOverlay.style.left = '0';
-        loadingOverlay.style.width = '100%';
-        loadingOverlay.style.height = '100%';
-        loadingOverlay.style.backgroundColor = 'black';
-        loadingOverlay.style.zIndex = '1000';
-        loadingOverlay.style.display = 'flex';
-        loadingOverlay.style.justifyContent = 'center';
-        loadingOverlay.style.alignItems = 'center';
-        loadingOverlay.style.color = 'white';
-        loadingOverlay.style.fontSize = '2rem';
-        loadingOverlay.textContent = 'Chargement...';
+        loadingOverlay.id = 'loadingOverlay';
+        loadingOverlay.innerHTML = `
+            <link rel="stylesheet" href="./static/js/css/test.css">
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <div class="loading-text">Chargement<span>.</span><span>.</span><span>.</span></div>
+            </div>
+        `;
         document.body.appendChild(loadingOverlay);
     }
 
@@ -49,9 +45,14 @@ import { changeView } from './camera.js';
                     changeView(targetView);
                     targetView = null;
                 }
-            }, 500);
+            }, 1000);
         }
     }
+
+    createLoadingOverlay(); // Démarrer l'animation de chargement
+    setTimeout(removeLoadingOverlay, 5000); // Simule un chargement de 5s
+
+
     // changeView('vue1');
 
     function resizeRenderer() {
@@ -136,7 +137,7 @@ import { changeView } from './camera.js';
 
     function initializeDefaultView() {
         // Définir la vue par défaut
-        const defaultView = 'vue4'; // Vue par défaut
+        const defaultView = 'vue1'; // Vue par défaut
         changeView(defaultView); // Application de la vue par défaut
     }
 
@@ -203,6 +204,94 @@ import { changeView } from './camera.js';
 	block.position.set(500, 500, 500);
 	scene.add(block);
 
+    let homeMenu = null;
+
+    let SpotLight2 = null;
+    let helper2 = null;
+
+    function initializeScene_menu() {
+        if (window.currentView === 'vue5') {
+            // const SpotLight1 = new THREE.SpotLight(0xffffff, 1.5);
+            // SpotLight1.position.set(500, 700, 500);
+            // SpotLight1.target.position.set(450, 500, 500);
+            // scene.add(SpotLight1);
+    
+            // const helper = new THREE.SpotLightHelper(SpotLight1);
+            // scene.add(helper);
+    
+            SpotLight2 = new THREE.SpotLight(0xffffff, 1.5);
+            SpotLight2.position.set(500, 700, 500);
+            SpotLight2.target.position.set(500, 500, 500);
+            scene.add(SpotLight2);
+    
+            helper2 = new THREE.SpotLightHelper(SpotLight2);
+            scene.add(helper2);
+    
+            document.addEventListener("keydown", (event) => {
+                const speed = 10; // Vitesse de déplacement de la lampe
+            
+                switch (event.key.toLowerCase()) {
+                    case "u": // Monter
+                        SpotLight2.position.y += speed;
+                        break;
+                    case "h": // Aller à gauche
+                        SpotLight2.position.x -= speed;
+                        break;
+                    case "j": // Descendre
+                        SpotLight2.position.y -= speed;
+                        break;
+                    case "k": // Aller à droite
+                        SpotLight2.position.x += speed;
+                        break;
+                }
+            
+                // Met à jour la position de la cible si nécessaire
+                SpotLight2.target.updateMatrixWorld();
+            
+                // Met à jour le helper pour voir les changements
+                helper2.update();
+            });
+    
+            const loaderr = new THREE.GLTFLoader();
+            loaderr.load('/3d_object/ImageToStl.com_football_stadium (5).glb', function (gltf) {
+                homeMenu = gltf.scene;
+    
+                homeMenu.traverse((node) => {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                        node.receiveShadow = true;
+                        if (node.material.map) {
+                            node.material.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                            node.material.map.magFilter = THREE.NearestFilter;
+                            node.material.map.minFilter = THREE.LinearMipMapLinearFilter;
+                        }
+                    }
+                });
+            
+                // Positionnement du modèle
+                scene.add(homeMenu);
+                homeMenu.position.set(500, 500, 500);
+                homeMenu.rotation.set(0, 0, 0);
+                homeMenu.scale.set(1, 1, 1);
+            });
+        }
+    }
+
+    function destroy_scene_menu() {
+        if (window.currentView !== 'vue5' && homeMenu) {
+            // Vérifie d'abord si SpotLight2 et helper2 existent
+            if (SpotLight2) {
+                scene.remove(SpotLight2); // Retirer SpotLight2
+            }
+            if (helper2) {
+                scene.remove(helper2); // Retirer helper2
+            }
+            scene.remove(homeMenu); // Retirer homeMenu de la scène
+            homeMenu = null; // Réinitialiser homeMenu
+        }
+    }
+
+
 
     
     const loader = new THREE.GLTFLoader();
@@ -249,39 +338,19 @@ import { changeView } from './camera.js';
 						camera.rotation.y += rotateSpeed; // Rotation vers la droite
 						break;
 				}
-            // Ajout des déplacements individuels des paddles dans animate()
-			// if (view === 'vue5' && event.key === '1')
-			// {
-			// 	if (!isLoading)
-			// 	{
-			// 		isLoading = true;
-			// 		targetView = 'vue3';
-					
-			// 		// **Met directement la caméra sur la vue cible AVANT d'afficher l'écran de chargement**
-			// 		// setTimeout(() => {
-			// 			createLoadingOverlay(); // Afficher l'écran de chargement
-			// 			changeView(targetView);
-			// 		// }, 1500);
-			
-					
-			// 		// Simuler un chargement (ajuster la durée si nécessaire)
-			// 		setTimeout(() => {
-			// 			removeLoadingOverlay(); // Retirer l'écran de chargement après un délai
-			// 			changeView('vue1');
-			// 		}, 3500);
-			// 	}
-			// }
 			if (event.key === '1') {
 				if (!isLoading) {
 					if (window.currentView === 'vue5') {
 						isLoading = true;
 						createLoadingOverlay();
-			
+                        window.currentView = 'vue3';
+                        
 						setTimeout(() => {
-							changeView('vue3');
+                            changeView('vue3');
 						}, 1500); // On attend un peu avant de passer en vue3
-			
+                        
 						setTimeout(() => {
+                            destroy_scene_menu();
 							removeLoadingOverlay();
 							changeView('vue1'); // Maintenant on va en vue1 après la transition
 							model.position.set(0, 0, 0);
@@ -296,10 +365,6 @@ import { changeView } from './camera.js';
 				}
             } else if (event.key === '2') {
                 changeView('vue2');
-                // scene.add(border_top);
-                // scene.add(border_bottom);
-                // scene.add(border_left);
-                // scene.add(border_right);
                 scene.add(ball);
                 scene.add(paddle_right);
                 scene.add(paddle_left);
@@ -312,11 +377,10 @@ import { changeView } from './camera.js';
 					isLoading = true;
 					targetView = 'vue5';
 					window.currentView = 'vue5';
-					
-					// **Met directement la caméra sur la vue cible AVANT d'afficher l'écran de chargement**
 					setTimeout(() => {
-						createLoadingOverlay(); // Afficher l'écran de chargement
+                        createLoadingOverlay(); // Afficher l'écran de chargement
 						changeView(targetView);
+                        initializeScene_menu();
 					}, 1500);
 			
 					
@@ -351,7 +415,8 @@ import { changeView } from './camera.js';
             // console.log('Paddle gauche position:', paddle_left.position);
             requestAnimationFrame(animate);
             renderer.render(scene, camera);
-			console.log(camera.position);
+            console.log(window.currentView);
+			// console.log(camera.position);
 
     
             // Déplacement du paddle droit
@@ -375,108 +440,6 @@ import { changeView } from './camera.js';
         animate();
     });
 
-	// const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-	// directionalLight.position.set(500, 750, 500);
-	// scene.add(directionalLight);
-
-
-	// const light1 = new THREE.SpotLight(0xffffff, 1.5);
-	// light1.position.set(700, 700, 700);  // Lumière principale venant du dessus
-	// light1.target.position.set(500, 500, 500);
-	// scene.add(light1);
-	// scene.add(light1.target);
-
-	// const light2 = new THREE.SpotLight(0xffffff, 0.8);
-	// light2.position.set(300, 800, 300);  // Lumière secondaire pour combler les ombres
-	// light2.target.position.set(500, 500, 500);
-	// scene.add(light2);
-	// scene.add(light2.target);
-
-	// const light3 = new THREE.SpotLight(0xffaa88, 0.6);
-	// light3.position.set(500, 300, 700);  // Contre-jour pour détacher l'objet du fond
-	// light3.target.position.set(500, 500, 500);
-	// scene.add(light3);
-	// scene.add(light3.target);
-
-	// // Optionnel : Ajouter une AmbientLight pour adoucir les ombres
-	// const ambientLight = new THREE.AmbientLight(0x404040, 1);
-	// scene.add(ambientLight);
-
-	// const loaderr = new THREE.GLTFLoader();
-	// loaderr.load('/3d_object/ImageToStl.com_football_stadium (5).glb', function (gltf) {
-	// const homeMenu = gltf.scene;
-		
-	// 	homeMenu.traverse((node) => {
-	// 		if (node.isMesh) {
-	// 			node.castShadow = true;
-	// 			node.receiveShadow = true;
-	// 			if (node.material.map) {
-	// 				node.material.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
-	// 				node.material.map.magFilter = THREE.NearestFilter;
-	// 				node.material.map.minFilter = THREE.LinearMipMapLinearFilter;
-	// 			}
-	// 		}
-	// 	});
-	
-	// 	// Positionnement du modèle
-	// 	scene.add(homeMenu);
-	// 	homeMenu.position.set(500, 500, 500);
-	// 	homeMenu.rotation.set(0, Math.PI / 1, 0);
-	// 	homeMenu.scale.set(1.7, 1.54, 2);
-	// });
-
-	// // const lightss = new THREE.PointLight(0xffffff, 10, 100);
-	// // lightss.position.set(500, 500, 500);
-	// // scene.add(lightss);
-
-	// const lightsss = new THREE.PointLight(0xffffff, 10, 100);
-	// lightsss.position.set(748, 600, 3420);
-	// scene.add(lightsss);
-
-	// const lightssss = new THREE.PointLight(0xffffff, 10, 100);
-	// lightssss.position.set(340, 600, 3420);
-	// scene.add(lightssss);
-
-	const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // Lumière douce globale
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(1, 1, 1); // Vient d'en haut
-    scene.add(directionalLight);
-
-    // Trois lumières ponctuelles autour du modèle
-    const pointLight1 = new THREE.PointLight(0xffffff, 1);
-    pointLight1.position.set(500, 500, 500); // Lumière à droite
-
-    const pointLight2 = new THREE.PointLight(0xffffff, 1);
-    pointLight2.position.set(300, 700, 500); // Lumière au-dessus
-
-    const pointLight3 = new THREE.PointLight(0xffffff, 1);
-    pointLight3.position.set(400, 500, 700); // Lumière devant
-
-    scene.add(pointLight1, pointLight2, pointLight3);
-
-	const loade = new THREE.GLTFLoader();
-	loade.load('/3d_object/persoTest.glb', function (gltf) {
-		const model = gltf.scene;
-		scene.add(model);
-	
-		model.position.set(400, 500, 500);
-		model.scale.set(10, 10, 10);
-	
-		// Modifier le matériau existant au lieu de le remplacer
-		model.traverse((node) => {
-			if (node.isMesh) {
-				const material = node.material;
-				if (material) {
-					material.roughness = 1;  // Enlève la brillance
-					material.metalness = 0;  // Désactive l'effet métallique
-				}
-			}
-		});
-	});
-	
-	// Gestion du redimensionnement
 	function onWindowResize() {
 		camera.aspect = window.innerWidth / window.innerHeight;
 		camera.updateProjectionMatrix();
